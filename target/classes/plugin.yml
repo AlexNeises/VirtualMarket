@@ -1,0 +1,10 @@
+name: VirtualMarket
+version: 0.0.1-SNAPSHOT
+main: es.neis.minecraft.virtualmarket.VirtualMarket
+commands:
+  vm:
+    description: Display the VirtualMarket help menu
+    usage: /vm ?
+    aliases: [VirtualMarket, virtualmarket, Virtualmarket, virtualMarket]
+    permission: VirtualMarket.sell
+    permission-message: You don't have permission to view this.
