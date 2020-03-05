@@ -10,11 +10,11 @@ import java.util.regex.Pattern;
 public class TableGenerator {
 
     private static String delimiter = " | ";
-    private static List<Character> char7 = Arrays.asList('°', '~', '@');
+    private static List<Character> char7 = Arrays.asList('�', '~', '@');
     private static List<Character> char5 = Arrays.asList('"', '{', '}', '(', ')', '*', 'f', 'k', '<', '>');
-    private static List<Character> char4 = Arrays.asList('I', 't', ' ', '[', ']', '€');
-    private static List<Character> char3 = Arrays.asList('l', '`', '³', '\'');
-    private static List<Character> char2 = Arrays.asList(',', '.', '!', 'i', '´', ':', ';', '|');
+    private static List<Character> char4 = Arrays.asList('I', 't', ' ', '[', ']', '�');
+    private static List<Character> char3 = Arrays.asList('l', '`', '�', '\'');
+    private static List<Character> char2 = Arrays.asList(',', '.', '!', 'i', '�', ':', ';', '|');
     private static char char1 = '\u17f2';
     private static Pattern regex = Pattern.compile(char1+"(?:§r)?(\\s*)"
 			+ "(?:§r§8)?"+char1+"(?:§r)?(\\s*)"

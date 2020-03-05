@@ -30,6 +30,7 @@ public class VirtualMarket extends JavaPlugin {
 	private Pattern pattern = Pattern.compile("-?\\d+(\\.\\d+)?");
 	private String sellHelp = ChatColor.GOLD + "/vm sell " + ChatColor.AQUA + "<num_items> <hand | item_name> <price_per_item>" + ChatColor.WHITE + " - Sells the given number of items for the set price per item";
 	private String browseHelp = ChatColor.GOLD + "/vm browse " + ChatColor.AQUA + "<hand | item_name>" + ChatColor.WHITE + " - Browse the market for the given item";
+	private String buyHelp = ChatColor.GOLD + "/vm buy " + ChatColor.AQUA + "<num_items> <hand | item_name> <total_cost_to_spend>" + ChatColor.WHITE + " - Attempts to buy the given number of items spending no more than the total cost given";
 	
 	private int getItemDamage(ItemStack itemStack) {
 		double maxDurability = itemStack.getType().getMaxDurability();
@@ -191,55 +192,56 @@ public class VirtualMarket extends JavaPlugin {
 			switch (args[0].toLowerCase()) {
 				case "help":
 				case "?":
-					player.sendMessage(ChatColor.GOLD + "/vm" + ChatColor.WHITE + " - Displays this menu");
-					player.sendMessage(ChatColor.GOLD + "/vm buy ? " + ChatColor.WHITE + " - Display help for buying");
-					player.sendMessage(ChatColor.GOLD + "/vm sell ? " + ChatColor.WHITE + " - Display help for selling");
-					player.sendMessage(ChatColor.GOLD + "/vm browse ? " + ChatColor.WHITE + " - Display help for browsing");
+					sendHelpMenu(player);
 					break;
 				case "buy":
-					if (args.length > 1) {
-						switch (args[1].toLowerCase()) {
-							case "help":
-							case "?":
-								player.sendMessage(ChatColor.GOLD + "/vm buy " + ChatColor.AQUA + "<num_items> <hand | item_name> <total_cost_to_spend>" + ChatColor.WHITE + " - Attempts to buy the given number of items spending no more than the total cost given");
-								break;
-						}
+					if (handleHelpCases(player, args, buyHelp)) {
+						//Do code to buy
 					}
 					break;
 				case "sell":
-					if (args.length > 1) {
-						switch (args[1].toLowerCase()) {
-							case "help":
-							case "?":
-								player.sendMessage(sellHelp);
-								break;
-							default:
-								processSell(player, args);
-						}
+					if (handleHelpCases(player, args, sellHelp)) {
+						processSell(player, args);
 					}
 					break;
 				case "browse":
-					if (args.length > 1) {
-						switch (args[1].toLowerCase()) {
-							case "help":
-							case "?":
-								player.sendMessage(browseHelp);
-								break;
-							default:
-								processBrowse(player, args);
-						}
+					if (handleHelpCases(player, args, browseHelp)) {
+						processBrowse(player, args);
 					}
 					break;
 				case "info":
 					break;
+				default:
+					//This isn't a valid command
+					player.sendMessage(ChatColor.GOLD + "/vm " + args[0] + ChatColor.WHITE + " is not a valid command, please use /vm ? to view all commands");
 			}
 		} else {
-			player.sendMessage(ChatColor.GOLD + "/vm" + ChatColor.WHITE + " - Displays this menu");
-			player.sendMessage(ChatColor.GOLD + "/vm buy ? " + ChatColor.WHITE + " - Display help for buying");
-			player.sendMessage(ChatColor.GOLD + "/vm sell ? " + ChatColor.WHITE + " - Display help for selling");
-			player.sendMessage(ChatColor.GOLD + "/vm browse ? " + ChatColor.WHITE + " - Display help for browsing");
+			sendHelpMenu(player);
 		}
 		return true;
+	}
+	
+	/**
+	 * Tests if this command has a ? or help. For example "/vm buy ?". If so, it'll display the help message and return false.
+	 * @param player Player that will receive the help message
+	 * @param args arguments to test against
+	 * @param helpCaseToDisplay The help message to display
+	 * @return False if a help message was displayed, true if this is a normal command
+	 */
+	public boolean handleHelpCases(Player player, String[] args, String helpCaseToDisplay) {
+		if (args.length < 1) {
+			switch (args[1].toLowerCase()) {
+			case "help":
+			case "?":
+				player.sendMessage(helpCaseToDisplay); //This is triggered with commands like "/vm buy ?" or "/vm buy help"
+				return false;
+			default:
+				return true;
+			}
+		} else {
+			player.sendMessage(helpCaseToDisplay); //there are not enough arguments. EX: "/vm buy"
+			return false; 
+		}
 	}
 
 	@Override
@@ -304,5 +306,13 @@ public class VirtualMarket extends JavaPlugin {
 			Class.forName("com.mysql.jdbc.Driver");
 			connection = DriverManager.getConnection("jdbc:mysql://" + this.host + ":" + this.port + "?useSSL=false", this.username, this.password);
 		}
+	}
+	
+	public void sendHelpMenu(Player player) {
+		player.sendMessage(ChatColor.GOLD + "/vm" + ChatColor.WHITE + " - Displays this menu");
+		player.sendMessage(ChatColor.GOLD + "/vm buy ? " + ChatColor.WHITE + " - Display help for buying");
+		player.sendMessage(ChatColor.GOLD + "/vm sell ? " + ChatColor.WHITE + " - Display help for selling");
+		player.sendMessage(ChatColor.GOLD + "/vm browse ? " + ChatColor.WHITE + " - Display help for browsing");
+
 	}
 }
