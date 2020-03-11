@@ -31,20 +31,20 @@ public class VirtualMarket extends JavaPlugin {
 	private String sellHelp = ChatColor.GOLD + "/vm sell " + ChatColor.AQUA + "<num_items> <hand | item_name> <price_per_item>" + ChatColor.WHITE + " - Sells the given number of items for the set price per item";
 	private String browseHelp = ChatColor.GOLD + "/vm browse " + ChatColor.AQUA + "<hand | item_name>" + ChatColor.WHITE + " - Browse the market for the given item";
 	private String buyHelp = ChatColor.GOLD + "/vm buy " + ChatColor.AQUA + "<num_items> <hand | item_name> <total_cost_to_spend>" + ChatColor.WHITE + " - Attempts to buy the given number of items spending no more than the total cost given";
-	
+
 	private int getItemDamage(ItemStack itemStack) {
 		double maxDurability = itemStack.getType().getMaxDurability();
 		double currentDurability = itemStack.getData().getData();
 		return (int) ((currentDurability / maxDurability) * 100.0);
 	}
-	
+
 	public boolean isNumeric(String str) {
 	    if (str == null) {
-	        return false; 
+	        return false;
 	    }
 	    return pattern.matcher(str).matches();
 	}
-	
+
 	private void processSell(Player player, String[] args) {
 		if (!isNumeric(args[args.length - 1]) || !isNumeric(args[1])) {
 			player.sendMessage(sellHelp);
@@ -70,7 +70,7 @@ public class VirtualMarket extends JavaPlugin {
 			}
 		}
 	}
-	
+
 	private void processBrowse(Player player, String[] args) {
 		ArrayList<String> ar = new ArrayList<String>();
 		for (int i = 1; i < args.length; i++) {
@@ -89,10 +89,16 @@ public class VirtualMarket extends JavaPlugin {
 			}
 			queryMarket(player, itemToFind);
 		} catch (Exception e) {
-			player.sendMessage("Unable to find the current item.");
+			queryMarket(player);
 		}
 	}
-	
+
+	private void processInfo(Player player, String[] args) {
+		ItemStack itemStack = new ItemStack(player.getInventory().getItemInMainHand());
+		XMaterial heldItem = XMaterial.matchXMaterial(itemStack);
+		player.sendMessage("Currently holding: " + ChatColor.BLUE + heldItem.toString() + ChatColor.WHITE);
+	}
+
 	private void checkInventory(Player player, XMaterial item, Integer amount, Float price) {
 		PlayerInventory inv = player.getInventory();
 		int numberSold = 0;
@@ -102,7 +108,7 @@ public class VirtualMarket extends JavaPlugin {
         for (int slot = 0; slot < size; slot++) {
             ItemStack is = inv.getItem(slot);
             if (is == null) continue;
-            if (item.parseMaterial() == is.getType()) {
+            if (item.name() == XMaterial.matchXMaterial(is).name()) {
             	if (!is.hasItemMeta()) {
 	            	if ((XMaterial.matchXMaterial(is).isDamageable() && getItemDamage(is) <= 0) || (!XMaterial.matchXMaterial(is).isDamageable())) {
 	            		exists = true;
@@ -134,23 +140,27 @@ public class VirtualMarket extends JavaPlugin {
         	player.sendMessage("This item doesn't exist in your inventory.");
         }
 	}
-	
-	private void queryMarket(Player player, XMaterial item) {
+
+	private void queryMarket(Player player) {
 		try {
 			openConnection();
 			Statement statement = connection.createStatement();
 			try {
-				ResultSet rs = statement.executeQuery("SELECT * FROM " + this.database + ".market WHERE item_name LIKE '" + item.toString() + "' ORDER BY id ASC, item_price DESC");
+				ResultSet rs = statement.executeQuery("SELECT * FROM " + this.database + ".market WHERE 1 ORDER BY item_name ASC, item_price DESC");
 				int count = 0;
-				while (rs.next())
-				{
-					if (count == 9) {
-						player.sendMessage("And more...");
-						break;
-					}
-					DecimalFormat df = new DecimalFormat("0.00");
-					player.sendMessage(ChatColor.RED + rs.getString("user_name") + ChatColor.WHITE + ": " + ChatColor.GOLD + rs.getString("item_amount") + " " + ChatColor.BLUE + rs.getString("item_name") + ChatColor.WHITE + " for " + ChatColor.YELLOW + "$" + df.format(rs.getFloat("item_price")) + ChatColor.WHITE + " each.");
-					count++;
+
+				if (rs.next() == false) {
+					player.sendMessage("Nothing is for sale at the moment.");
+				} else {
+					do {
+						if (count == 9) {
+							player.sendMessage("And more...");
+							break;
+						}
+						DecimalFormat df = new DecimalFormat("0.00");
+						player.sendMessage(ChatColor.RED + rs.getString("user_name") + ChatColor.WHITE + ": " + ChatColor.GOLD + rs.getString("item_amount") + " " + ChatColor.BLUE + rs.getString("item_name") + ChatColor.WHITE + " for " + ChatColor.YELLOW + "$" + df.format(rs.getFloat("item_price")) + ChatColor.WHITE + " each.");
+						count++;
+			        } while (rs.next());
 				}
 			} catch (SQLException e) {
 				e.printStackTrace();
@@ -161,22 +171,28 @@ public class VirtualMarket extends JavaPlugin {
 			e.printStackTrace();
 		}
 	}
-	
-	private void listOnMarket(Player player, XMaterial item, Integer numberSold, Float pricePerItem) {
+
+	private void queryMarket(Player player, XMaterial item) {
 		try {
 			openConnection();
 			Statement statement = connection.createStatement();
 			try {
-				statement.executeUpdate("INSERT INTO " + this.database + ".market ("
-						+ "`item_name`, "
-						+ "`item_price`, "
-						+ "`item_amount`, "
-						+ "`user_name`, "
-						+ "`user_uuid`) VALUES ('" + item.toString() + "', "
-						+ "" + pricePerItem + ", "
-						+ "" + numberSold + ", "
-						+ "'" + player.getName() + "', "
-						+ "'" + player.getUniqueId() + "')");
+				ResultSet rs = statement.executeQuery("SELECT * FROM " + this.database + ".market WHERE item_name LIKE '" + item.toString() + "' ORDER BY timestamp ASC, item_price DESC");
+				int count = 0;
+
+				if (rs.next() == false) {
+					player.sendMessage("This item isn't listed on the market.");
+				} else {
+					do {
+						if (count == 9) {
+							player.sendMessage("And more...");
+							break;
+						}
+						DecimalFormat df = new DecimalFormat("0.00");
+						player.sendMessage(ChatColor.RED + rs.getString("user_name") + ChatColor.WHITE + ": " + ChatColor.GOLD + rs.getString("item_amount") + " " + ChatColor.BLUE + rs.getString("item_name") + ChatColor.WHITE + " for " + ChatColor.YELLOW + "$" + df.format(rs.getFloat("item_price")) + ChatColor.WHITE + " each.");
+						count++;
+			        } while (rs.next());
+				}
 			} catch (SQLException e) {
 				e.printStackTrace();
 			}
@@ -186,7 +202,43 @@ public class VirtualMarket extends JavaPlugin {
 			e.printStackTrace();
 		}
 	}
-	
+
+	private void listOnMarket(Player player, XMaterial item, Integer numberSold, Float pricePerItem) {
+		try {
+			openConnection();
+			Statement statement = connection.createStatement();
+			try {
+				String query = "INSERT INTO " + this.database + ".market ("
+						+ "`item_name`, "
+						+ "`item_price`, "
+						+ "`item_amount`, "
+						+ "`user_name`, "
+						+ "`user_uuid`) VALUES ('" + item.toString() + "', "
+						+ "" + pricePerItem + ", "
+						+ "" + numberSold + ", "
+						+ "'" + player.getName() + "', "
+						+ "'" + player.getUniqueId() + "') ON DUPLICATE KEY UPDATE " + this.database + ".market SET item_amount = item_amount + " + numberSold + " WHERE item_name LIKE '" + item.toString() + "' AND item_price = " + pricePerItem + " AND user_uuid LIKE '" + player.getUniqueId() + "'";
+				getLogger().info(query);
+				statement.executeUpdate("INSERT INTO " + this.database + ".market ("
+						+ "`item_name`, "
+						+ "`item_price`, "
+						+ "`item_amount`, "
+						+ "`user_name`, "
+						+ "`user_uuid`) VALUES ('" + item.toString() + "', "
+						+ "" + pricePerItem + ", "
+						+ "" + numberSold + ", "
+						+ "'" + player.getName() + "', "
+						+ "'" + player.getUniqueId() + "') ON DUPLICATE KEY UPDATE item_amount = item_amount + " + numberSold);
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		} catch (SQLException e) {
+			e.printStackTrace();
+		}
+	}
+
 	private boolean processCommand(Player player, String[] args) {
 		if (args.length > 0) {
 			switch (args[0].toLowerCase()) {
@@ -205,11 +257,38 @@ public class VirtualMarket extends JavaPlugin {
 					}
 					break;
 				case "browse":
-					if (handleHelpCases(player, args, browseHelp)) {
+					if (args.length > 1) {
+						switch (args[1].toLowerCase()) {
+							case "help":
+							case "?":
+								player.sendMessage(browseHelp);
+								break;
+							default:
+								processBrowse(player, args);
+						}
+					} else {
 						processBrowse(player, args);
 					}
 					break;
 				case "info":
+					if (args.length > 1) {
+						switch (args[1].toLowerCase()) {
+							default:
+								player.sendMessage("Get info on the item you're holding.");
+								break;
+						}
+					} else {
+						processInfo(player, args);
+					}
+					break;
+				case "cancel":
+					if (args.length > 1) {
+						switch (args[1].toLowerCase()) {
+							default:
+								player.sendMessage("Removes the item you're selling from the market.");
+								break;
+						}
+					}
 					break;
 				default:
 					//This isn't a valid command
@@ -220,7 +299,7 @@ public class VirtualMarket extends JavaPlugin {
 		}
 		return true;
 	}
-	
+
 	/**
 	 * Tests if this command has a ? or help. For example "/vm buy ?". If so, it'll display the help message and return false.
 	 * @param player Player that will receive the help message
@@ -229,7 +308,7 @@ public class VirtualMarket extends JavaPlugin {
 	 * @return False if a help message was displayed, true if this is a normal command
 	 */
 	public boolean handleHelpCases(Player player, String[] args, String helpCaseToDisplay) {
-		if (args.length < 1) {
+		if (args.length > 1) {
 			switch (args[1].toLowerCase()) {
 			case "help":
 			case "?":
@@ -240,7 +319,7 @@ public class VirtualMarket extends JavaPlugin {
 			}
 		} else {
 			player.sendMessage(helpCaseToDisplay); //there are not enough arguments. EX: "/vm buy"
-			return false; 
+			return false;
 		}
 	}
 
@@ -255,13 +334,13 @@ public class VirtualMarket extends JavaPlugin {
 			}
 			return true;
 		}
-		return false; 
+		return false;
 	}
-	
+
 	@Override
 	public void onEnable() {
 		getLogger().info("Enabling VirtualMarket!");
-		
+
 		host = this.getConfig().getString("database.host", "localhost");
 		database = this.getConfig().getString("database.database", "neises_virtualmarket");
 		username = this.getConfig().getString("database.username", "root");
@@ -281,24 +360,24 @@ public class VirtualMarket extends JavaPlugin {
 			e.printStackTrace();
 		}
 	}
-	
+
 	public void createSchema(Statement statement) throws SQLException {
 		statement.executeUpdate("CREATE DATABASE IF NOT EXISTS " + this.database);
-		String sqlStatement = "CREATE TABLE IF NOT EXISTS `" + this.database + "`.`market` ( `id` INT NOT NULL AUTO_INCREMENT, `item_name` VARCHAR(256) NULL, `item_price` DECIMAL(10,2) NULL, `item_amount` INT(11) NULL, `user_name` VARCHAR(256) NULL, `user_uuid` VARCHAR(256) NULL, PRIMARY KEY (`id`), UNIQUE INDEX `id_UNIQUE` (`id` ASC) VISIBLE) ENGINE = InnoDB";
-		getLogger().info(sqlStatement);
+		String sqlStatement = "CREATE TABLE IF NOT EXISTS `" + this.database + "`.`market` ( `id` INT NOT NULL AUTO_INCREMENT, `item_name` VARCHAR(256) NULL, `item_price` DECIMAL(10,2) NULL, `item_amount` INT(11) NULL, `user_name` VARCHAR(256) NULL, `user_uuid` VARCHAR(256) NULL, `timestamp` DATETIME DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (`id`), UNIQUE INDEX `id_UNIQUE` (`id` ASC) VISIBLE, UNIQUE INDEX `item_UNIQUE` (`item_name` ASC, `item_price` ASC, `user_uuid` ASC) VISIBLE) ENGINE = InnoDB";
+//		getLogger().info(sqlStatement);
 		statement.executeUpdate(sqlStatement);
 	}
-	
+
 	@Override
 	public void onDisable() {
 		getLogger().info("onDisable has been invoked!");
 	}
-	
+
 	public void openConnection() throws SQLException, ClassNotFoundException {
 		if (connection != null && !connection.isClosed()) {
 			return;
 		}
-		
+
 		synchronized (this) {
 			if (connection != null && !connection.isClosed()) {
 				return;
@@ -307,7 +386,7 @@ public class VirtualMarket extends JavaPlugin {
 			connection = DriverManager.getConnection("jdbc:mysql://" + this.host + ":" + this.port + "?useSSL=false", this.username, this.password);
 		}
 	}
-	
+
 	public void sendHelpMenu(Player player) {
 		player.sendMessage(ChatColor.GOLD + "/vm" + ChatColor.WHITE + " - Displays this menu");
 		player.sendMessage(ChatColor.GOLD + "/vm buy ? " + ChatColor.WHITE + " - Display help for buying");

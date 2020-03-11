@@ -1,10 +1,12 @@
-CREATE TABLE IF NOT EXISTS `neises_virtualmarket`.`market` (
+CREATE TABLE IF NOT EXISTS `mydb`.`market` (
   `id` INT NOT NULL AUTO_INCREMENT,
-  `item_name` VARCHAR(256) NULL,
-  `item_price` VARCHAR(256) NULL,
-  `item_amount` VARCHAR(256) NULL,
-  `user_name` VARCHAR(256) NULL,
-  `user_uuid` VARCHAR(256) NULL
+  `item_name` VARCHAR(256) NULL DEFAULT NULL,
+  `item_price` DECIMAL(10,2) NULL DEFAULT NULL,
+  `item_amount` INT(11) NULL DEFAULT NULL,
+  `user_name` VARCHAR(256) NULL DEFAULT NULL,
+  `user_uuid` VARCHAR(256) NULL DEFAULT NULL,
+  `timestamp` DATETIME NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE INDEX `id_UNIQUE` (`id` ASC) VISIBLE)
-ENGINE = InnoDB;
+  UNIQUE INDEX `id_UNIQUE` (`id` ASC) VISIBLE,
+  UNIQUE INDEX `item_UNIQUE` (`item_name` ASC, `item_price` ASC, `user_uuid` ASC) VISIBLE)
+ENGINE = InnoDB
