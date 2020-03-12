@@ -19,6 +19,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.RegisteredServiceProvider;
+
+import net.milkbowl.vault.economy.Economy;
 
 import es.neis.minecraft.virtualmarket.TableGenerator.Alignment;
 import es.neis.minecraft.virtualmarket.TableGenerator.Receiver;
@@ -27,6 +30,7 @@ public class VirtualMarket extends JavaPlugin {
 	private Connection connection;
 	private String host, database, username, password;
 	private int port;
+	private static Economy econ = null;
 	private Pattern pattern = Pattern.compile("-?\\d+(\\.\\d+)?");
 	private String sellHelp = ChatColor.GOLD + "/vm sell " + ChatColor.AQUA + "<num_items> <hand | item_name> <price_per_item>" + ChatColor.WHITE + " - Sells the given number of items for the set price per item";
 	private String browseHelp = ChatColor.GOLD + "/vm browse " + ChatColor.AQUA + "<hand | item_name>" + ChatColor.WHITE + " - Browse the market for the given item";
@@ -64,7 +68,7 @@ public class VirtualMarket extends JavaPlugin {
 				} else {
 					itemToSell = XMaterial.matchXMaterial(sellingItem).get();
 				}
-				checkInventory(player, itemToSell, Integer.parseInt(args[1]), Float.parseFloat(args[args.length - 1]));
+				checkInventory(player, itemToSell, Integer.parseInt(args[1]), Double.parseDouble(args[args.length - 1]));
 			} catch (Exception e) {
 				player.sendMessage("Unable to sell the current item.");
 			}
@@ -99,7 +103,7 @@ public class VirtualMarket extends JavaPlugin {
 		player.sendMessage("Currently holding: " + ChatColor.BLUE + heldItem.toString() + ChatColor.WHITE);
 	}
 
-	private void checkInventory(Player player, XMaterial item, Integer amount, Float price) {
+	private void checkInventory(Player player, XMaterial item, Integer amount, Double price) {
 		PlayerInventory inv = player.getInventory();
 		int numberSold = 0;
         if (amount <= 0) return;
@@ -135,7 +139,7 @@ public class VirtualMarket extends JavaPlugin {
         }
         if (exists) {
         	listOnMarket(player, item, numberSold, price);
-        	player.sendMessage("You sold " + Integer.toString(numberSold) + " " + item.toString() + " for $" + Float.toString(price) + " per item.");
+        	player.sendMessage("You sold " + Integer.toString(numberSold) + " " + item.toString() + " for " + econ.format(price) + " per item.");
         } else {
         	player.sendMessage("This item doesn't exist in your inventory.");
         }
@@ -188,8 +192,7 @@ public class VirtualMarket extends JavaPlugin {
 							player.sendMessage("And more...");
 							break;
 						}
-						DecimalFormat df = new DecimalFormat("0.00");
-						player.sendMessage(ChatColor.RED + rs.getString("user_name") + ChatColor.WHITE + ": " + ChatColor.GOLD + rs.getString("item_amount") + " " + ChatColor.BLUE + rs.getString("item_name") + ChatColor.WHITE + " for " + ChatColor.YELLOW + "$" + df.format(rs.getFloat("item_price")) + ChatColor.WHITE + " each.");
+						player.sendMessage(ChatColor.RED + rs.getString("user_name") + ChatColor.WHITE + ": " + ChatColor.GOLD + rs.getString("item_amount") + " " + ChatColor.BLUE + rs.getString("item_name") + ChatColor.WHITE + " for " + ChatColor.YELLOW + econ.format(rs.getDouble("item_price")) + ChatColor.WHITE + " each.");
 						count++;
 			        } while (rs.next());
 				}
@@ -203,7 +206,7 @@ public class VirtualMarket extends JavaPlugin {
 		}
 	}
 
-	private void listOnMarket(Player player, XMaterial item, Integer numberSold, Float pricePerItem) {
+	private void listOnMarket(Player player, XMaterial item, Integer numberSold, Double pricePerItem) {
 		try {
 			openConnection();
 			Statement statement = connection.createStatement();
@@ -339,6 +342,11 @@ public class VirtualMarket extends JavaPlugin {
 
 	@Override
 	public void onEnable() {
+		if (!setupEconomy() ) {
+            getLogger().severe(String.format("[%s] - Disabled due to no Vault dependency found!", getDescription().getName()));
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 		getLogger().info("Enabling VirtualMarket!");
 
 		host = this.getConfig().getString("database.host", "localhost");
@@ -359,6 +367,18 @@ public class VirtualMarket extends JavaPlugin {
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	private boolean setupEconomy() {
+		if (getServer().getPluginManager().getPlugin("Vault") == null) {
+			return false;
+		}
+		RegisteredServiceProvider<Economy> rsp = getServer().getServicesManager().getRegistration(Economy.class);
+		if (rsp == null) {
+			return false;
+		}
+		econ = rsp.getProvider();
+		return econ != null;
 	}
 
 	public void createSchema(Statement statement) throws SQLException {
